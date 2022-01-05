@@ -41,7 +41,8 @@
 #define NUM_CHANNELS		16
 #define NUM_TRIGGER_STAGES	16
 
-#define DSLOGIC_REQUIRED_VERSION_MAJOR	1
+#define DSLOGIC_REQUIRED_VERSION_MAJOR_V1	1
+#define DSLOGIC_REQUIRED_VERSION_MAJOR_V2	2
 
 /* 6 delay states of up to 256 clock ticks */
 #define MAX_SAMPLE_DELAY	(6 * 256)
@@ -73,6 +74,11 @@ enum dslogic_edge_modes {
 	DS_EDGE_FALLING,
 };
 
+enum dslogic_api_version {
+	DS_API_V1,
+	DS_API_V2
+};
+
 struct dslogic_version {
 	uint8_t major;
 	uint8_t minor;
@@ -91,7 +97,6 @@ struct dslogic_trigger_pos {
 	uint32_t remain_cnt_l;
 	uint32_t remain_cnt_h;
 	uint32_t status;
-	uint8_t first_block[488];
 };
 
 struct dslogic_profile {
@@ -111,6 +116,13 @@ struct dslogic_profile {
 
 	/* Memory depth in bits. */
 	uint64_t mem_depth;
+	uint32_t usb_buffer_duration_ms;
+	uint32_t block_size;
+	enum dslogic_api_version api_version;
+	uint64_t max_samplerate;
+	uint64_t half_samplerate;
+    uint64_t quarter_samplerate;
+	uint8_t max_predivider;
 };
 
 struct dev_context {

@@ -26,23 +26,28 @@ static const struct dslogic_profile supported_device[] = {
 	/* DreamSourceLab DSLogic */
 	{ 0x2a0e, 0x0001, "DreamSourceLab", "DSLogic", NULL,
 		"dreamsourcelab-dslogic-fx2.fw",
-		0, "DreamSourceLab", "DSLogic", 256 * 1024 * 1024},
+		0, "DreamSourceLab", "DSLogic", 256 * 1024 * 1024, 100,
+		512, DS_API_V1, SR_MHZ(100), SR_MHZ(200), SR_MHZ(400), 1},
 	/* DreamSourceLab DSCope */
 	{ 0x2a0e, 0x0002, "DreamSourceLab", "DSCope", NULL,
 		"dreamsourcelab-dscope-fx2.fw",
-		0, "DreamSourceLab", "DSCope", 256 * 1024 * 1024},
+		0, "DreamSourceLab", "DSCope", 256 * 1024 * 1024, 100,
+		512, DS_API_V1, SR_MHZ(100), SR_MHZ(200), SR_MHZ(400), 1},
 	/* DreamSourceLab DSLogic Pro */
 	{ 0x2a0e, 0x0003, "DreamSourceLab", "DSLogic Pro", NULL,
 		"dreamsourcelab-dslogic-pro-fx2.fw",
-		0, "DreamSourceLab", "DSLogic", 256 * 1024 * 1024},
+		0, "DreamSourceLab", "DSLogic", 256 * 1024 * 1024, 100,
+		512, DS_API_V1, SR_MHZ(100), SR_MHZ(200), SR_MHZ(400), 1},
 	/* DreamSourceLab DSLogic Plus */
 	{ 0x2a0e, 0x0020, "DreamSourceLab", "DSLogic Plus", NULL,
 		"dreamsourcelab-dslogic-plus-fx2.fw",
-		0, "DreamSourceLab", "DSLogic", 256 * 1024 * 1024},
+		0, "DreamSourceLab", "DSLogic", 256 * 1024 * 1024, 100,
+		512, DS_API_V1, SR_MHZ(100), SR_MHZ(200), SR_MHZ(400), 1},
 	/* DreamSourceLab DSLogic Basic */
 	{ 0x2a0e, 0x0021, "DreamSourceLab", "DSLogic Basic", NULL,
 		"dreamsourcelab-dslogic-basic-fx2.fw",
-		0, "DreamSourceLab", "DSLogic", 256 * 1024},
+		0, "DreamSourceLab", "DSLogic", 256 * 1024, 100,
+		512, DS_API_V1, SR_MHZ(100), SR_MHZ(200), SR_MHZ(400), 1},
 
 	ALL_ZERO
 };
@@ -255,7 +260,10 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
 
 		devc->samplerates = samplerates;
 		devc->num_samplerates = ARRAY_SIZE(samplerates);
-		has_firmware = usb_match_manuf_prod(devlist[i], "DreamSourceLab", "USB-based Instrument");
+		if (devc->profile->api_version == DS_API_V1)
+			has_firmware = usb_match_manuf_prod(devlist[i], "DreamSourceLab", "USB-based Instrument");
+		else
+			has_firmware = usb_match_manuf_prod(devlist[i], "DreamSourceLab", "USB-based DSL Instrument v2");
 
 		if (has_firmware) {
 			/* Already has the firmware, so fix the new address. */
