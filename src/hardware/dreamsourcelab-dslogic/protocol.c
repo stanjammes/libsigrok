@@ -214,9 +214,24 @@ struct fpga_config_v2 {
 	uint32_t end_sync;
 };
 
+struct vco_config {
+	uint8_t dest;
+	uint8_t cnt;
+	uint8_t delay;
+	uint8_t byte[4];
+};
+
 struct finished_transfer {
 	unsigned char *buffer;
 	uint32_t length;
+};
+
+static const struct vco_config vco_init_config[] = {
+	{DS_I2C_REG_VCO_ADDR + 2, 1, 0, {0x01, 0x00, 0x00, 0x00}},
+	{DS_I2C_REG_VCO_ADDR, 4, 0, {0x01, 0x61, 0x00, 0x30}},
+	{DS_I2C_REG_VCO_ADDR, 4, 0, {0x01, 0x40, 0xF1, 0x46}},
+	{DS_I2C_REG_VCO_ADDR, 4, 10, {0x01, 0x62, 0x3D, 0x40}},
+	{0, 0, 0, {0, 0, 0, 0}}
 };
 
 #pragma pack(pop)
@@ -373,6 +388,26 @@ static int write_register(libusb_device_handle *devhdl, uint8_t addr,
     return SR_OK;
 }
 
+
+static int configure_vco(libusb_device_handle *devhdl,
+	const struct vco_config *config)
+{
+	int i, ret;
+
+	while (config->dest) {
+		if (config->delay > 0)
+			g_usleep(config->delay * 1000);
+		for (i = 0; i < config->cnt; i++) {
+			ret = write_register(devhdl, config->dest,
+				config->byte[i]);
+			if (ret != SR_OK)
+				return ret;
+		}
+		config++;
+	}
+
+	return SR_OK;
+}
 
 static int command_start_acquisition(const struct sr_dev_inst *sdi)
 {
@@ -593,6 +628,8 @@ SR_PRIV int dslogic_fpga_firmware_upload(const struct sr_dev_inst *sdi)
 		name = DSCOPE_FPGA_FIRMWARE;
 	} else if (!strcmp(devc->profile->model, "DSLogic U2Basic")) {
 		name = DSLOGIC_U2BASIC_FPGA_FIRMWARE;
+	} else if (!strcmp(devc->profile->model, "DSLogic U3Pro16")) {
+		name = DSLOGIC_U3PRO16_FPGA_FIRMWARE;
 	} else {
 		sr_err("Failed to select FPGA firmware.");
 		return SR_ERR;
@@ -612,6 +649,11 @@ SR_PRIV int dslogic_fpga_firmware_upload(const struct sr_dev_inst *sdi)
 			sr_err("Failed to upload FPGA firmware.");
 			sr_resource_close(drvc->sr_ctx, &bitstream);
 			return SR_ERR;
+		}
+		/* Configure the frequency synthesizer (VCO), if present. */
+		if (devc->profile->dev_caps & DSLOGIC_CAPS_ADF4360) {
+			if (configure_vco(usb->devhdl, vco_init_config) != SR_OK)
+				sr_err("Failed to configure the VCO.");
 		}
 	} else {
 		/* Tell the device firmware is coming. */

@@ -53,6 +53,13 @@ static const struct dslogic_profile supported_device[] = {
 		"dreamsourcelab-dslogic-u2basic-fx2.fw",
 		0, "DreamSourceLab", "DSLogic", 64 * 1024 * 1024, 100,
 		512, SR_MHZ(100), SR_MHZ(200), SR_MHZ(400), 1},
+	/* DreamSourceLab DSLogic U3Pro16 */
+	{ 0x2a0e, 0x002a, "DreamSourceLab", "DSLogic U3Pro16", NULL,
+		"dreamsourcelab-dslogic-basic-fx2.fw",
+		DSLOGIC_CAPS_ADF4360 | DSLOGIC_CAPS_USB30,
+		"DreamSourceLab", "DSLogic",
+		2ULL * 1024ULL * 1024ULL * 1024ULL, 40,
+		1024, SR_MHZ(500), SR_MHZ(500), SR_GHZ(1), 5},
 
 	ALL_ZERO
 };
@@ -129,6 +136,27 @@ static const uint64_t samplerates_U2Basic[] = {
 	SR_MHZ(25),
 	SR_MHZ(50),
 	SR_MHZ(100),
+};
+
+static const uint64_t samplerates_U3Pro16[] = {
+	SR_KHZ(10),
+	SR_KHZ(20),
+	SR_KHZ(50),
+	SR_KHZ(100),
+	SR_KHZ(200),
+	SR_KHZ(500),
+	SR_MHZ(1),
+	SR_MHZ(2),
+	SR_MHZ(5),
+	SR_MHZ(10),
+	SR_MHZ(20),
+	SR_MHZ(25),
+	SR_MHZ(50),
+	SR_MHZ(100),
+	SR_MHZ(125),
+	SR_MHZ(250),
+	SR_MHZ(500),
+	SR_MHZ(1000),
 };
 
 static gboolean is_plausible(const struct libusb_device_descriptor *des)
@@ -283,6 +311,9 @@ static GSList *scan(struct sr_dev_driver *di, GSList *options)
 		if (!strcmp(devc->profile->model, "DSLogic U2Basic")) {
 			devc->samplerates = samplerates_U2Basic;
 			devc->num_samplerates = ARRAY_SIZE(samplerates_U2Basic);
+		} else if (!strcmp(devc->profile->model, "DSLogic U3Pro16")) {
+			devc->samplerates = samplerates_U3Pro16;
+			devc->num_samplerates = ARRAY_SIZE(samplerates_U3Pro16);
 		} else {
 			devc->samplerates = samplerates;
 			devc->num_samplerates = ARRAY_SIZE(samplerates);
