@@ -54,6 +54,8 @@
 #define DSLOGIC_PLUS_FPGA_FIRMWARE "dreamsourcelab-dslogic-plus-fpga.fw"
 #define DSLOGIC_BASIC_FPGA_FIRMWARE "dreamsourcelab-dslogic-basic-fpga.fw"
 
+#define DSLOGIC_CAPS_USB30   (1 << 7)
+
 enum dslogic_operation_modes {
 	DS_OP_NORMAL,
 	DS_OP_INTERNAL_TEST,
