@@ -53,6 +53,12 @@ static const struct dslogic_profile supported_device[] = {
 		"dreamsourcelab-dslogic-u2basic-fx2.fw",
 		0, "DreamSourceLab", "DSLogic", 64 * 1024 * 1024, 100,
 		512, SR_MHZ(100), SR_MHZ(200), SR_MHZ(400), 1},
+	/* DreamSourceLab DSLogic Plus V3 (Pango FPGA) */
+	{ 0x2a0e, 0x0034, "DreamSourceLab", "DSLogic Plus V3", NULL,
+		"dreamsourcelab-dslogic-plus-v3-fx2.fw",
+		DSLOGIC_CAPS_SECURITY | DSLOGIC_CAPS_MAX25_VTH,
+		"DreamSourceLab", "DSLogic", 256 * 1024 * 1024, 100,
+		512, SR_MHZ(100), SR_MHZ(200), SR_MHZ(400), 1},
 
 	ALL_ZERO
 };

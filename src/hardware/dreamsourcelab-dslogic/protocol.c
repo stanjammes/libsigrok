@@ -692,6 +692,8 @@ SR_PRIV int dslogic_fpga_firmware_upload(const struct sr_dev_inst *sdi)
 		name = DSCOPE_FPGA_FIRMWARE;
 	} else if (!strcmp(devc->profile->model, "DSLogic U2Basic")) {
 		name = DSLOGIC_U2BASIC_FPGA_FIRMWARE;
+	} else if (!strcmp(devc->profile->model, "DSLogic Plus V3")) {
+		name = DSLOGIC_PLUS_V3_FPGA_FIRMWARE;
 	} else {
 		sr_err("Failed to select FPGA firmware.");
 		return SR_ERR;

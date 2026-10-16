@@ -114,6 +114,8 @@ ATTRS{idVendor}=="2a0e", ATTRS{idProduct}=="0020", ENV{ID_SIGROK}="1"
 ATTRS{idVendor}=="2a0e", ATTRS{idProduct}=="0021", ENV{ID_SIGROK}="1"
 # DreamSourceLab DSLogic U2Basic
 ATTRS{idVendor}=="2a0e", ATTRS{idProduct}=="0029", ENV{ID_SIGROK}="1"
+# DreamSourceLab DSLogic Plus V3
+ATTRS{idVendor}=="2a0e", ATTRS{idProduct}=="0034", ENV{ID_SIGROK}="1"
 
 # Great Scott Gadgets
 # GreatFET One
