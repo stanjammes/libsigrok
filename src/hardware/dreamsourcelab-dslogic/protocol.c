@@ -101,6 +101,7 @@
 
 #define DSLOGIC_ATOMIC_SAMPLES		(sizeof(uint64_t) * 8)
 #define DSLOGIC_ATOMIC_BYTES		sizeof(uint64_t)
+#define DS_SAMPLES_ALIGN		1024
 
 /*
  * The FPGA is configured with TLV tuples. Length is specified as the
@@ -780,6 +781,16 @@ static bool set_trigger(const struct sr_dev_inst *sdi, struct fpga_config_common
 	return num_trigger_stages != 0;
 }
 
+/*
+ * The hardware captures in whole blocks, so round the sample count up
+ * (like DSView does) and trim the surplus when sending the data.
+ */
+static uint64_t hw_sample_count(const struct dev_context *devc)
+{
+	return (devc->limit_samples + DS_SAMPLES_ALIGN - 1) &
+		~(uint64_t)(DS_SAMPLES_ALIGN - 1);
+}
+
 static int fpga_config_size(const struct sr_dev_inst *sdi)
 {
 	const struct dev_context *const devc = sdi->priv;
@@ -913,7 +924,7 @@ static int fpga_configure(const struct sr_dev_inst *sdi)
 	WL32(&cfg->divider, divider);
 
 	/* Number of 16-sample units. */
-	WL32(&cfg->count, devc->limit_samples / 16);
+	WL32(&cfg->count, hw_sample_count(devc) / 16);
 
 	len = fpga_config_size(sdi);
 	ret = libusb_bulk_transfer(usb->devhdl, 2 | LIBUSB_ENDPOINT_OUT,
@@ -1598,11 +1609,14 @@ static void LIBUSB_CALL trigger_receive(struct libusb_transfer *transfer)
 			tpos->ram_saddr, tpos->remain_cnt_h, tpos->remain_cnt_l);
 		remain_samples = ((uint64_t)tpos->remain_cnt_h) << 32;
 		remain_samples += tpos->remain_cnt_l;
-		if (devc->limit_samples > remain_samples)
-			devc->samples_captured = devc->limit_samples - remain_samples;
+		if (hw_sample_count(devc) > remain_samples)
+			devc->samples_captured =
+				hw_sample_count(devc) - remain_samples;
 		else
-			devc->samples_captured = devc->limit_samples;
+			devc->samples_captured = hw_sample_count(devc);
 		devc->samples_captured &= ~(DSLOGIC_ATOMIC_SAMPLES - 1);
+		if (devc->samples_captured > devc->limit_samples)
+			devc->samples_captured = devc->limit_samples;
 		devc->trigger_pos = tpos->real_pos;
 		g_free(tpos);
 		start_transfers(sdi);
