@@ -53,6 +53,7 @@
 #define DSLOGIC_PRO_FPGA_FIRMWARE "dreamsourcelab-dslogic-pro-fpga.fw"
 #define DSLOGIC_PLUS_FPGA_FIRMWARE "dreamsourcelab-dslogic-plus-fpga.fw"
 #define DSLOGIC_BASIC_FPGA_FIRMWARE "dreamsourcelab-dslogic-basic-fpga.fw"
+#define DSLOGIC_U2BASIC_FPGA_FIRMWARE "dreamsourcelab-dslogic-u2basic-fpga.fw"
 
 #define DSLOGIC_CAPS_USB30   (1 << 7)
 
