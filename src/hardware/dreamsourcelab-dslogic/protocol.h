@@ -56,6 +56,7 @@
 #define DSLOGIC_U2BASIC_FPGA_FIRMWARE "dreamsourcelab-dslogic-u2basic-fpga.fw"
 
 #define DSLOGIC_CAPS_USB30   (1 << 7)
+#define DSLOGIC_CAPS_MAX25_VTH (1 << 10)
 
 enum dslogic_operation_modes {
 	DS_OP_NORMAL,

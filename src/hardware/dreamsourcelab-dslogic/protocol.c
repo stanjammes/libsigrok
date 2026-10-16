@@ -52,6 +52,7 @@
 #define DS_I2C_REG_VCO_ADDR		0x48
 #define DS_I2C_REG_HDL_VERSION_ADDR	0x04
 
+
 #define DS_START_FLAGS_STOP		(1 << 7)
 #define DS_START_FLAGS_CLK_48MHZ	(1 << 6)
 #define DS_START_FLAGS_SAMPLE_WIDE	(1 << 5)
@@ -963,8 +964,17 @@ SR_PRIV int dslogic_set_voltage_threshold(const struct sr_dev_inst *sdi, double 
 	int ret;
 	struct dev_context *const devc = sdi->priv;
 	const struct sr_usb_dev_inst *const usb = sdi->conn;
-	const uint8_t value = (threshold / 5.0) * 255;
-	const uint16_t cmd = value | (DS_ADDR_VTH << 8);
+	uint8_t value;
+	uint16_t cmd;
+
+	/* v2 devices scale the threshold like DSView does. */
+	if (devc->api_version == DS_API_V1)
+		value = (threshold / 5.0) * 255;
+	else if (devc->profile->dev_caps & DSLOGIC_CAPS_MAX25_VTH)
+		value = (threshold / 3.3) * (1.0 / 2.0) * 255;
+	else
+		value = (threshold / 3.3) * (1.5 / 2.5) * 255;
+	cmd = value | (DS_ADDR_VTH << 8);
 
 	/* Send the control command. */
 	if (devc->api_version == DS_API_V1) {
