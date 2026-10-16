@@ -45,6 +45,8 @@
 #define DS_CMD_GET_HW_INFO		0xbc
 
 #define DS_I2C_REG_VTH_ADDR		0x78
+#define DS_I2C_REG_SEC_DATA_ADDR	0x75
+#define DS_I2C_REG_SEC_CTRL_ADDR	0x73
 #define DS_I2C_REG_CTR1_ADDR	0x71
 #define DS_I2C_REG_CTR0_ADDR	0x70
 #define DS_I2C_REG_COMB_ADDR	0x68
@@ -52,6 +54,14 @@
 #define DS_I2C_REG_VCO_ADDR		0x48
 #define DS_I2C_REG_HDL_VERSION_ADDR	0x04
 
+/* Security handshake, see security_check(). */
+#define DS_SECU_READY			(1 << 3)
+#define DS_SECU_PASS			(1 << 4)
+#define DS_SECU_STEPS			8
+#define DS_SECU_START			0x0513
+#define DS_SECU_CHECK			0x0219
+#define DS_SECU_EEP_ADDR		0x3c00
+#define DS_SECU_TRY_CNT			8
 
 #define DS_START_FLAGS_STOP		(1 << 7)
 #define DS_START_FLAGS_CLK_48MHZ	(1 << 6)
@@ -234,7 +244,7 @@ struct finished_transfer {
 #define USB_TIMEOUT (3 * 1000)
 
 static int command_read_ext(libusb_device_handle *devhdl, uint8_t control_code,
-					uint8_t offset, uint8_t read_len, uint8_t *read_buffer)
+					uint16_t offset, uint8_t read_len, uint8_t *read_buffer)
 {
 	int ret;
 
@@ -279,7 +289,7 @@ static int command_read(libusb_device_handle *devhdl, uint8_t control_code,
 }
 
 static int command_write_ext(libusb_device_handle *devhdl, uint8_t control_code,
-					uint8_t offset, uint8_t write_len, uint8_t *write_buffer)
+					uint16_t offset, uint8_t write_len, uint8_t *write_buffer)
 {
 	int ret;
 	struct ctl_header cmd;
@@ -374,6 +384,94 @@ static int write_register(libusb_device_handle *devhdl, uint8_t addr,
     return SR_OK;
 }
 
+
+static int read_register(libusb_device_handle *devhdl, uint8_t addr,
+	uint8_t *value)
+{
+	if (command_read_ext(devhdl, DSL_CTL_I2C_STATUS, addr, sizeof(*value),
+			value) != SR_OK) {
+		sr_err("Sent DSL_CTL_I2C_STATUS command failed.");
+		return SR_ERR;
+	}
+
+	return SR_OK;
+}
+
+static int write_register16(libusb_device_handle *devhdl, uint8_t addr,
+	uint16_t value)
+{
+	if (write_register(devhdl, addr, value & 0xff) != SR_OK)
+		return SR_ERR;
+
+	return write_register(devhdl, addr + 1, value >> 8);
+}
+
+/*
+ * Some devices (like the DSLogic Plus V3) only work after a challenge/
+ * response handshake with the FPGA, using a key stored in the FX2's
+ * EEPROM. This follows dsl_secuCheck() from DSView.
+ */
+static int security_check(libusb_device_handle *devhdl)
+{
+	uint8_t key[DS_SECU_STEPS * 2];
+	uint8_t status, data[2];
+	int step, tries;
+
+	if (write_register(devhdl, DS_I2C_REG_CTR0_ADDR, 0) != SR_OK)
+		return SR_ERR;
+	if (command_read_ext(devhdl, DSL_CTL_NVM, DS_SECU_EEP_ADDR,
+			sizeof(key), key) != SR_OK) {
+		sr_err("Failed to read the security key from EEPROM.");
+		return SR_ERR;
+	}
+
+	/* Reset the security engine. */
+	if (write_register16(devhdl, DS_I2C_REG_SEC_CTRL_ADDR, 0) != SR_OK)
+		return SR_ERR;
+	g_usleep(10 * 1000);
+	if (write_register16(devhdl, DS_I2C_REG_SEC_CTRL_ADDR, 1) != SR_OK)
+		return SR_ERR;
+	if (read_register(devhdl, DS_I2C_REG_SEC_CTRL_ADDR, &status) != SR_OK)
+		return SR_ERR;
+	if (status & DS_SECU_PASS)
+		return SR_ERR;
+
+	if (write_register16(devhdl, DS_I2C_REG_SEC_DATA_ADDR, 0) != SR_OK ||
+	    write_register16(devhdl, DS_I2C_REG_SEC_CTRL_ADDR,
+			DS_SECU_START) != SR_OK)
+		return SR_ERR;
+
+	tries = DS_SECU_TRY_CNT;
+	for (step = DS_SECU_STEPS - 1; step >= 0; step--) {
+		do {
+			if (read_register(devhdl, DS_I2C_REG_SEC_CTRL_ADDR,
+					&status) != SR_OK)
+				return SR_ERR;
+			if (status & DS_SECU_PASS)
+				return SR_ERR;
+			if (status & DS_SECU_READY)
+				break;
+		} while (tries-- > 0);
+		if (!(status & DS_SECU_READY)) {
+			sr_err("Security engine not ready.");
+			return SR_ERR;
+		}
+		if (read_register(devhdl, DS_I2C_REG_SEC_DATA_ADDR,
+				&data[0]) != SR_OK ||
+		    read_register(devhdl, DS_I2C_REG_SEC_DATA_ADDR + 1,
+				&data[1]) != SR_OK)
+			return SR_ERR;
+		if (data[0] || data[1])
+			return SR_ERR;
+		if (write_register16(devhdl, DS_I2C_REG_SEC_DATA_ADDR,
+				RL16(&key[step * 2])) != SR_OK ||
+		    write_register16(devhdl, DS_I2C_REG_SEC_CTRL_ADDR,
+				DS_SECU_CHECK) != SR_OK)
+			return SR_ERR;
+	}
+
+	return SR_OK;
+}
 
 static int command_start_acquisition(const struct sr_dev_inst *sdi)
 {
@@ -613,6 +711,12 @@ SR_PRIV int dslogic_fpga_firmware_upload(const struct sr_dev_inst *sdi)
 			sr_err("Failed to upload FPGA firmware.");
 			sr_resource_close(drvc->sr_ctx, &bitstream);
 			return SR_ERR;
+		}
+		if (devc->profile->dev_caps & DSLOGIC_CAPS_SECURITY) {
+			if (security_check(usb->devhdl) != SR_OK)
+				sr_err("Security check failed.");
+			else
+				sr_dbg("Security check passed.");
 		}
 	} else {
 		/* Tell the device firmware is coming. */
